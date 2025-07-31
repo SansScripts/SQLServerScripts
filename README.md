@@ -1,6 +1,10 @@
 # SQLServerScripts - SQL Server DDL Generator
 
-A Java application that connects to SQL Server databases and generates DDL (CREATE statements) for specified tables. The program can display the DDL directly in the console or save it to a structured directory for version control and deployment.
+[![Java Version](https://img.shields.io/badge/Java-15%2B-blue)](https://adoptium.net/)
+[![SQL Server](https://img.shields.io/badge/SQL%20Server-All%20Versions-red)](https://www.microsoft.com/sql-server)
+[![License](https://img.shields.io/badge/License-Educational-green)](LICENSE)
+
+A comprehensive Java application that connects to SQL Server databases and generates DDL (CREATE statements) for database objects. The tool provides both interactive and command-line interfaces, making it suitable for both exploratory use and automated workflows.
 
 ## Features
 
@@ -37,33 +41,43 @@ SQLServerScripts/
 
 ## Requirements
 
-- **Java**: JDK 11 or higher
-- **SQL Server JDBC Driver**: mssql-jdbc-12.8.1.jre11.jar (included)
+- **Java**: JDK 15 or higher
+- **Maven**: 3.6.0 or higher
 - **SQL Server**: Any version with accessible system catalogs
 
-## Usage
+## 🚀 Quick Start
 
-### Basic Usage
+### Build with Maven
 ```bash
-java -cp .:mssql-jdbc-12.8.1.jre11.jar SQLServerScripts
+mvn clean package
 ```
 
-### Interactive Workflow
-1. **Connection Setup**:
-   - Hostname (default: localhost)
-   - Port (default: 1433)
-   - Instance name (optional)
-   - Database name (required)
-   - Username (required)
-   - Password (required)
-   - Schema (default: dbo)
+### Interactive Mode
+```bash
+# Run without arguments for interactive mode
+java -jar target/sqlserver-scripts-1.0.0-jar-with-dependencies.jar
+```
 
-2. **Table Scripting**:
-   - Enter table name to script
-   - Choose output option:
-     - Option 1: Display in console
-     - Option 2: Save to file
-   - Option to script additional tables
+### CLI Mode - Export All Tables
+```bash
+java -jar target/sqlserver-scripts-1.0.0-jar-with-dependencies.jar export-tables \
+  --server localhost \
+  --database MyDatabase \
+  --user sa \
+  --password MyPassword \
+  --output-dir ./exports
+```
+
+### CLI Mode - Export Single Table
+```bash
+java -jar target/sqlserver-scripts-1.0.0-jar-with-dependencies.jar export-table \
+  --server localhost \
+  --database MyDatabase \
+  --user sa \
+  --password MyPassword \
+  --table Customers \
+  --output-dir ./exports
+```
 
 ### Example Session
 ```
@@ -183,42 +197,147 @@ Generated files follow this pattern:
 ### Common Issues
 
 1. **Connection refused**: 
-   - Ensure SQL Server is running
-   - Verify hostname, port, and instance name
-   - Check firewall settings
+   - Ensure that SQL Server is running.
+   - Verify hostname and port.
+   - Check firewall or network settings.
 
 2. **Authentication failed**:
-   - Verify username/password
-   - Check if SQL Server Authentication is enabled
-   - Ensure user has database access
+   - Ensure correct username/password.
+   - Verify that SQL Server Authentication is enabled.
+   - Ensure user access to the specified database.
 
 3. **Table not found**:
-   - Verify table name spelling
-   - Check if table exists in specified schema
-   - Ensure user has SELECT permissions
+   - Verify table name and schema spelling.
+   - Confirm that the table exists in the specified schema.
+   - Ensure user has SELECT permissions on the table.
 
 4. **Permission denied**:
-   - User needs SELECT access to system catalogs
-   - Grant usage on schema if necessary
+   - Grant necessary permissions to access system catalogs.
+   - Ensure appropriate role or user access.
+
+## 📋 CLI Commands Reference
+
+### export-tables Command
+Exports all tables from a specified schema to individual SQL files.
+
+```bash
+java -jar sqlserver-scripts.jar export-tables [options]
+```
+
+**Options:**
+- `-s, --server <host>` - SQL Server hostname (default: localhost)
+- `-p, --port <port>` - Server port (default: 1433)
+- `-d, --database <name>` - Database name (required)
+- `-u, --user <username>` - Username (required)
+- `-w, --password <password>` - Password (required)
+- `--schema <name>` - Schema name (default: dbo)
+- `-o, --output-dir <path>` - Output directory (default: current directory)
+- `--exclude-indexes` - Skip index generation
+- `--exclude-foreign-keys` - Skip foreign key generation
+- `-v, --verbose` - Enable verbose output
+- `-h, --help` - Show help message
+
+### export-table Command
+Exports a single table to a SQL file.
+
+```bash
+java -jar sqlserver-scripts.jar export-table [options]
+```
+
+**Additional Options:**
+- `-t, --table <name>` - Table name to export (required)
 
 ## Related Projects
 
 - **PostScripts**: PostgreSQL DDL generator
 - **SQLServerConnect**: SQL Server database schema inspector
-- All projects use consistent interfaces and output formats
+- **SQLgres**: SQL Server to PostgreSQL DDL converter
+- Each project provides consistent interfaces and output formats
 
-## File Structure
+## Project Structure
 
 ```
 SQLServerScripts/
-├── SQLServerScripts.java          # Main application
-├── SQLServerScripts.class         # Compiled main class
-├── ConnectionInfo.class           # Connection data structure
-├── ScriptRequest.class            # Request data structure
-├── mssql-jdbc-12.8.1.jre11.jar  # SQL Server JDBC driver
-└── README.md                      # This documentation
+├── src/
+│   ├── main/
+│   │   └── java/
+│   │       └── com/dbtools/sqlserverscripts/
+│   │           ├── SQLServerScripts.java    # Main application
+│   │           └── ScriptOptions.java       # Configuration options
+│   └── test/
+│       └── java/
+│           └── com/dbtools/sqlserverscripts/
+│               └── TestScriptOptions.java   # Test for ScriptOptions
+├── target/                                  # Maven build output
+├── pom.xml                                  # Maven configuration
+└── README.md                                # This documentation
 ```
 
-## License
+## 🔧 Configuration Options
 
-Educational/Development use. JDBC driver license applies separately.
+### ScriptOptions Class
+The `ScriptOptions` class provides comprehensive configuration for DDL generation:
+
+**Skip Flags:**
+- `skipConstraintNames` - Omit constraint names
+- `skipForeignKeys` - Omit foreign key constraints
+- `skipIndexes` - Omit index creation statements
+- `skipTriggers` - Omit triggers (future feature)
+- `skipCheckConstraints` - Omit check constraints
+- `skipUniqueKeys` - Omit unique key constraints
+- `skipDefaults` - Omit default values
+- `skipIdentity` - Omit IDENTITY specifications
+- `skipCollation` - Omit collation settings
+- `skipExtendedProperties` - Omit extended properties
+- `skipStatistics` - Omit statistics
+- `skipChangeTracking` - Omit change tracking
+- `skipCompression` - Omit compression settings
+- `skipPermissions` - Omit permissions
+
+## 📦 Maven Dependencies
+
+The project uses the following dependencies:
+
+```xml
+<dependencies>
+    <!-- SQL Server JDBC Driver -->
+    <dependency>
+        <groupId>com.microsoft.sqlserver</groupId>
+        <artifactId>mssql-jdbc</artifactId>
+        <version>12.8.1.jre11</version>
+    </dependency>
+    
+    <!-- Apache Commons CLI -->
+    <dependency>
+        <groupId>commons-cli</groupId>
+        <artifactId>commons-cli</artifactId>
+        <version>1.6.0</version>
+    </dependency>
+</dependencies>
+```
+
+## 🚀 Performance Considerations
+
+- **Metadata Caching**: Queries are optimized to minimize database roundtrips
+- **Batch Processing**: CLI mode processes tables sequentially with progress indication
+- **Memory Usage**: Minimal memory footprint, suitable for large schemas
+- **Connection Pooling**: Not implemented (single connection per session)
+
+## 🔐 Security
+
+- **Authentication**: SQL Server authentication only (Windows auth not supported)
+- **SSL/TLS**: Disabled by default (`encrypt=false;trustServerCertificate=true`)
+- **Password Handling**: Console masking in interactive mode
+- **Permissions**: Requires SELECT on tables and VIEW DEFINITION on schema
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is for educational and development use. The Microsoft SQL Server JDBC driver is subject to its own license terms.

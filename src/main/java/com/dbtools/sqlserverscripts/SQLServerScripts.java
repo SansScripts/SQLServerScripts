@@ -1,3 +1,5 @@
+package com.dbtools.sqlserverscripts;
+
 /*
   Project: SQLServerScripts
 
@@ -42,6 +44,9 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+// Import ScriptOptions
+import com.dbtools.sqlserverscripts.ScriptOptions;
+
 public class SQLServerScripts {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 1433;
@@ -50,33 +55,39 @@ public class SQLServerScripts {
     private static final String TABLES_DIR = "tables";
     
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+Scanner scanner = new Scanner(System.in);
+        ScriptOptions options = new ScriptOptions();
         
         try {
             System.out.println("=== SQLServerScripts - SQL Server DDL Generator ===");
             System.out.println("Generate CREATE statements for SQL Server database objects\n");
             
-            // Get connection details
-            ConnectionInfo connInfo = getConnectionInfo(scanner);
+            // Set options interactively
+            setOptionsInteractive(scanner, options);
             
             // Connect to database
-            try (Connection conn = connectToDatabase(connInfo)) {
+            try (Connection conn = connectToDatabase(options)) {
                 System.out.println("✓ Successfully connected to SQL Server database!");
                 
-                boolean continueScripting = true;
+boolean continueScripting = true;
                 while (continueScripting) {
-                    // Get table name and action
-                    ScriptRequest request = getScriptRequest(scanner);
+                    // Set table name
+                    System.out.print("Enter table name to script: ");
+                    String tableName = scanner.nextLine().trim();
+                    while (tableName.isEmpty()) {
+                        System.out.print("Table name is required: ");
+                        tableName = scanner.nextLine().trim();
+                    }
+                    options.setTablesFromString(tableName);
                     
                     // Generate DDL
-                    String ddl = generateTableDDL(conn, request.getTableName(), connInfo.getSchema());
-                    
+                    String ddl = generateTableDDL(conn, options.getTables().get(0), options.getSchema());
                     if (ddl != null) {
-                        // Handle output based on user choice
-                        if (request.isDisplayOnly()) {
-                            displayDDL(ddl, request.getTableName());
+                        // Handle output
+                        if (options.isInteractive()) {
+                            displayDDL(ddl, options.getTables().get(0));
                         } else {
-                            saveDDL(ddl, request.getTableName());
+                            saveDDL(ddl, options.getTables().get(0));
                         }
                     }
                     
@@ -102,97 +113,17 @@ public class SQLServerScripts {
         }
     }
     
-    private static ConnectionInfo getConnectionInfo(Scanner scanner) {
-        System.out.println("Enter SQL Server connection details:\n");
-        
-        System.out.print("Server hostname/IP [" + DEFAULT_HOST + "]: ");
-        String hostname = scanner.nextLine().trim();
-        if (hostname.isEmpty()) {
-            hostname = DEFAULT_HOST;
-        }
-        
-        System.out.print("Port [" + DEFAULT_PORT + "]: ");
-        String portStr = scanner.nextLine().trim();
-        int port = DEFAULT_PORT;
-        if (!portStr.isEmpty()) {
-            try {
-                port = Integer.parseInt(portStr);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid port number, using default: " + DEFAULT_PORT);
-            }
-        }
-        
-        System.out.print("Instance name (optional, press enter to skip): ");
-        String instanceName = scanner.nextLine().trim();
-        
-        System.out.print("Database name (required): ");
-        String database = scanner.nextLine().trim();
-        while (database.isEmpty()) {
-            System.out.print("Database name is required: ");
-            database = scanner.nextLine().trim();
-        }
-        
-        System.out.print("Username (required): ");
-        String username = scanner.nextLine().trim();
-        while (username.isEmpty()) {
-            System.out.print("Username is required: ");
-            username = scanner.nextLine().trim();
-        }
-        
-        System.out.print("Password (required): ");
-        String password = scanner.nextLine().trim();
-        while (password.isEmpty()) {
-            System.out.print("Password is required: ");
-            password = scanner.nextLine().trim();
-        }
-        
-        System.out.print("Schema [" + DEFAULT_SCHEMA + "]: ");
-        String schema = scanner.nextLine().trim();
-        if (schema.isEmpty()) {
-            schema = DEFAULT_SCHEMA;
-        }
-        
-        return new ConnectionInfo(hostname, port, instanceName, database, username, password, schema);
-    }
-    
-    private static Connection connectToDatabase(ConnectionInfo connInfo) throws SQLException {
+    private static Connection connectToDatabase(ScriptOptions options) throws SQLException {
         // Build SQL Server connection URL
-        String url;
-        if (!connInfo.getInstanceName().isEmpty()) {
-            url = String.format("jdbc:sqlserver://%s:%d\\\\%s;databaseName=%s;encrypt=false;trustServerCertificate=true", 
-                               connInfo.getHostname(), connInfo.getPort(), connInfo.getInstanceName(), connInfo.getDatabase());
-        } else {
-            url = String.format("jdbc:sqlserver://%s:%d;databaseName=%s;encrypt=false;trustServerCertificate=true", 
-                               connInfo.getHostname(), connInfo.getPort(), connInfo.getDatabase());
-        }
+        String url = String.format("jdbc:sqlserver://%s:%d;databaseName=%s;encrypt=false;trustServerCertificate=true", 
+                                   options.getHostname(), options.getPort(), options.getDatabase());
         
         System.out.println("\nConnecting to: " + url.replaceAll("encrypt=false;trustServerCertificate=true", "..."));
-        System.out.println("Database: " + connInfo.getDatabase());
-        System.out.println("Schema: " + connInfo.getSchema());
+        System.out.println("Database: " + options.getDatabase());
+        System.out.println("Schema: " + options.getSchema());
         System.out.println("=" + "=".repeat(50));
         
-        return DriverManager.getConnection(url, connInfo.getUsername(), connInfo.getPassword());
-    }
-    
-    private static ScriptRequest getScriptRequest(Scanner scanner) {
-        System.out.println("\n" + "=".repeat(50));
-        
-        System.out.print("Enter table name to script: ");
-        String tableName = scanner.nextLine().trim();
-        while (tableName.isEmpty()) {
-            System.out.print("Table name is required: ");
-            tableName = scanner.nextLine().trim();
-        }
-        
-        System.out.println("\nOutput options:");
-        System.out.println("1. Display DDL in console only");
-        System.out.println("2. Save DDL to file");
-        System.out.print("Choose option (1 or 2): ");
-        
-        String choice = scanner.nextLine().trim();
-        boolean displayOnly = !choice.equals("2");
-        
-        return new ScriptRequest(tableName, displayOnly);
+        return DriverManager.getConnection(url, options.getUsername(), options.getPassword());
     }
     
     private static String generateTableDDL(Connection conn, String tableName, String schema) {
@@ -527,37 +458,57 @@ public class SQLServerScripts {
             System.err.println("✗ Error saving DDL to file: " + e.getMessage());
         }
     }
-}
-
-// Helper classes
-class ConnectionInfo {
-    private final String hostname;
-    private final int port;
-    private final String instanceName;
-    private final String database;
-    private final String username;
-    private final String password;
-    private final String schema;
     
-    public ConnectionInfo(String hostname, int port, String instanceName, String database, 
-                         String username, String password, String schema) {
-        this.hostname = hostname;
-        this.port = port;
-        this.instanceName = instanceName;
-        this.database = database;
-        this.username = username;
-        this.password = password;
-        this.schema = schema;
+    // Helper method to set options interactively
+    private static void setOptionsInteractive(Scanner scanner, ScriptOptions options) {
+    System.out.println("Enter SQL Server connection details:\n");
+    
+    System.out.print("Server hostname/IP [localhost]: ");
+    String hostname = scanner.nextLine().trim();
+    if (!hostname.isEmpty()) options.setHostname(hostname);
+    
+    System.out.print("Port [1433]: ");
+    String portStr = scanner.nextLine().trim();
+    if (!portStr.isEmpty()) {
+        try {
+            options.setPort(Integer.parseInt(portStr));
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid port number, using default.");
+        }
     }
     
-    // Getters
-    public String getHostname() { return hostname; }
-    public int getPort() { return port; }
-    public String getInstanceName() { return instanceName; }
-    public String getDatabase() { return database; }
-    public String getUsername() { return username; }
-    public String getPassword() { return password; }
-    public String getSchema() { return schema; }
+    System.out.print("Database name (required): ");
+    String database = scanner.nextLine().trim();
+    while (database.isEmpty()) {
+        System.out.print("Database name is required: ");
+        database = scanner.nextLine().trim();
+    }
+    options.setDatabase(database);
+    
+    System.out.print("Username (required): ");
+    String username = scanner.nextLine().trim();
+    while (username.isEmpty()) {
+        System.out.print("Username is required: ");
+        username = scanner.nextLine().trim();
+    }
+    options.setUsername(username);
+    
+    System.out.print("Password (required): ");
+    String password = scanner.nextLine().trim();
+    while (password.isEmpty()) {
+        System.out.print("Password is required: ");
+        password = scanner.nextLine().trim();
+    }
+    options.setPassword(password);
+    
+    System.out.print("Schema [dbo]: ");
+    String schema = scanner.nextLine().trim();
+    if (!schema.isEmpty()) options.setSchema(schema);
+
+    System.out.print("Interactive mode (y/n) [y]: ");
+    String interactive = scanner.nextLine().trim().toLowerCase();
+    options.setInteractive(!interactive.equals("n"));
+    }
 }
 
 class ScriptRequest {

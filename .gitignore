@@ -1,6 +1,10 @@
 # Maven build output
 target/
 
+# Gradle build output
+.gradle/
+build/
+
 # IDE files
 .idea/
 *.iml
@@ -16,3 +20,6 @@ scripts/
 
 # Log files
 *.log
+
+# Sandbox directory (for testing)
+sandbox/
